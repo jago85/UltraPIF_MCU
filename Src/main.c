@@ -186,11 +186,11 @@ enum PifState {
     PIF_S_WAIT_WRITE
 };
 
-enum Command {
-    WRITE_64 = 0,
-    READ_64 = 1,
-    WRITE_4 = 2,
-    READ_4 = 3
+enum PifRcpCommand {
+    PIF_RCP_CMD_WRITE_64 = 0,
+    PIF_RCP_CMD_READ_64 = 1,
+    PIF_RCP_CMD_WRITE_4 = 2,
+    PIF_RCP_CMD_READ_4 = 3
 };
 
 enum UltraPifBootCommand {
@@ -251,7 +251,7 @@ enum ResetSource {
 
 typedef struct CmdAddr_st {
     unsigned Addr:9;
-    enum Command Cmd:2;
+    enum PifRcpCommand Cmd:2;
     unsigned __reserved:5;
 } CmdAddr_t;
 
@@ -2478,7 +2478,7 @@ void PIF_HandleRequest(Pif_t *pif)
 {
     switch (pif->CmdAddr.Cmd)
     {
-    case READ_64:
+    case PIF_RCP_CMD_READ_64:
         if (pif->IsBooting == false)
         {
             memcpy(pif->PifRamWrite, pif->PifRamRead, PIFRAM_SIZE);
@@ -2494,15 +2494,15 @@ void PIF_HandleRequest(Pif_t *pif)
         }
         break;
 
-    case READ_4:
+    case PIF_RCP_CMD_READ_4:
         if (pif->IsBooting == false)
         {
             pif->Debug = pif->CmdAddr.Addr;
         }
         break;
 
-    case WRITE_4:
-    case WRITE_64:
+    case PIF_RCP_CMD_WRITE_4:
+    case PIF_RCP_CMD_WRITE_64:
         pif->State = PIF_S_WAIT_WRITE;
         break;
     }
@@ -2730,7 +2730,7 @@ void PIF_Process(Pif_t *pif)
         {
             ReadPifRam(pif);
             memcpy(pif->PifRamWrite, pif->PifRamRead, PIFRAM_SIZE);
-            if (pif->CmdAddr.Cmd == WRITE_4)
+            if (pif->CmdAddr.Cmd == PIF_RCP_CMD_WRITE_4)
             {
                 // check for page load commands while booting
                 if ((pif->IsBooting) && (pif->CmdAddr.Addr == 0x1f4))
