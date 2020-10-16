@@ -57,7 +57,7 @@
 
 #include "crc32.h"
 
-#define MCU_VERSION 0x02000800
+#define MCU_VERSION 0x02000000
 
 // FPGA SPI Registers
 #define SPI_REG_INT 0x00
@@ -2635,12 +2635,16 @@ void PIF_Process(Pif_t *pif)
 
         SetCicType(pif, pif->CicSeed[0]);
         pif->State = PIF_S_BOOTING;
-        pif->BootTick = pif->CurrentTick;
+        pif->IsBooting = false;
         break;
 
     case PIF_S_BOOTING:
         if (pif->IsBooting == false)
         {
+            pif->RemoteResetPending = false;
+            pif->RemoteResetTick = 0;
+            pif->ResetBtnHoldTick = 0;
+            pif->ResetBtnTick = 0;
             pif->BootTick = pif->CurrentTick;
             pif->GpioOut |= PIF_GPIO_LED;
             pif->GpioOut &= ~(PIF_GPIO_PRENMI | PIF_GPIO_NMI);
@@ -2688,7 +2692,6 @@ void PIF_Process(Pif_t *pif)
                 pif->State = PIF_S_POR;
                 pif->GpioOut &= PIF_GPIO_COLDRESET;
                 WriteGpio(pif->GpioOut);
-                pif->ResetBtnHoldTick = 0;
                 pif->ResetSource = RESET_SOURCE_BUTTON_LONG;
 
                 // stop the crystal to allow new setup
@@ -2716,9 +2719,6 @@ void PIF_Process(Pif_t *pif)
                     pif->GpioOut |= PIF_GPIO_NMI;
                     WriteGpio(pif->GpioOut);
                     SetCicType(pif, pif->CicSeed[0]);
-                    pif->ResetBtnTick = 0;
-                    pif->RemoteResetPending = false;
-                    pif->RemoteResetTick = 0;
                     pif->State = PIF_S_BOOTING;
                 }
             }
