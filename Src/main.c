@@ -2654,7 +2654,7 @@ void PIF_Process(Pif_t *pif)
         if (HAL_GPIO_ReadPin(FPGA_IRQ_GPIO_Port, FPGA_IRQ_Pin) == GPIO_PIN_RESET)
         {
             pif->BootTick = pif->CurrentTick;
-            ReadMultipleRegisters(1, (uint16_t *)&pif->CmdAddr, 1);
+            ReadMultipleRegisters(SPI_REG_PIFCMD, (uint16_t *)&pif->CmdAddr, 1);
             PIF_HandleRequest(pif);
         }
 
@@ -2668,7 +2668,7 @@ void PIF_Process(Pif_t *pif)
     case PIF_S_RUNNING:
         if (HAL_GPIO_ReadPin(FPGA_IRQ_GPIO_Port, FPGA_IRQ_Pin) == GPIO_PIN_RESET)
         {
-            ReadMultipleRegisters(1, (uint16_t *)&pif->CmdAddr, 1);
+            ReadMultipleRegisters(SPI_REG_PIFCMD, (uint16_t *)&pif->CmdAddr, 1);
             PIF_HandleRequest(pif);
         }
 
