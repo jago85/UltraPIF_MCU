@@ -2672,54 +2672,58 @@ void PIF_Process(Pif_t *pif)
             PIF_HandleRequest(pif);
         }
 
-        // Handle reset button and remote reset
-        if (((pif->GpioIn & PIF_GPIO_RESET_BUTTON) == 0)
-                || ((pif->RemoteResetPending == false)
-                        && (pif->RemoteResetTick != 0)
-                        && (pif->CurrentTick - pif->RemoteResetTick > 2000)))
+        // Don't care about resets when an RCP write is pending
+        if (pif->State != PIF_S_WAIT_WRITE)
         {
-            pif->ResetSource = (pif->RemoteResetTick) ? RESET_SOURCE_CONTROLLER : RESET_SOURCE_BUTTON;
-            if (pif->RemoteResetTick != 0)
+            // Handle reset button and remote reset
+            if (((pif->GpioIn & PIF_GPIO_RESET_BUTTON) == 0)
+                    || ((pif->RemoteResetPending == false)
+                            && (pif->RemoteResetTick != 0)
+                            && (pif->CurrentTick - pif->RemoteResetTick > 2000)))
             {
-                pif->RemoteResetPending = true;
-            }
-            if (pif->ResetBtnHoldTick == 0)
-            {
-                pif->ResetBtnHoldTick = pif->CurrentTick;
-            }
-            else if (pif->CurrentTick - pif->ResetBtnHoldTick > 1500)
-            {
-                pif->State = PIF_S_POR;
-                pif->GpioOut &= PIF_GPIO_COLDRESET;
-                WriteGpio(pif->GpioOut);
-                pif->ResetSource = RESET_SOURCE_BUTTON_LONG;
-
-                // stop the crystal to allow new setup
-                pif->Fsc = 0;
-                pif->Fso_5 = 0;
-                pif->Fsel = false;
-                pif->Crystal = 0;
-                SetClockGen2(0, false);
-            }
-
-            if (pif->ResetBtnTick == 0)
-            {
-                pif->GpioOut |= PIF_GPIO_PRENMI;
-                WriteGpio(pif->GpioOut);
-                pif->ResetBtnTick = pif->CurrentTick;
-            }
-        }
-        else
-        {
-            pif->ResetBtnHoldTick = 0;
-            if (pif->ResetBtnTick)
-            {
-                if ((pif->CurrentTick - pif->ResetBtnTick) > 500)
+                pif->ResetSource = (pif->RemoteResetTick) ? RESET_SOURCE_CONTROLLER : RESET_SOURCE_BUTTON;
+                if (pif->RemoteResetTick != 0)
                 {
-                    pif->GpioOut |= PIF_GPIO_NMI;
+                    pif->RemoteResetPending = true;
+                }
+                if (pif->ResetBtnHoldTick == 0)
+                {
+                    pif->ResetBtnHoldTick = pif->CurrentTick;
+                }
+                else if (pif->CurrentTick - pif->ResetBtnHoldTick > 1500)
+                {
+                    pif->State = PIF_S_POR;
+                    pif->GpioOut &= PIF_GPIO_COLDRESET;
                     WriteGpio(pif->GpioOut);
-                    SetCicType(pif, pif->CicSeed[0]);
-                    pif->State = PIF_S_BOOTING;
+                    pif->ResetSource = RESET_SOURCE_BUTTON_LONG;
+
+                    // stop the crystal to allow new setup
+                    pif->Fsc = 0;
+                    pif->Fso_5 = 0;
+                    pif->Fsel = false;
+                    pif->Crystal = 0;
+                    SetClockGen2(0, false);
+                }
+
+                if (pif->ResetBtnTick == 0)
+                {
+                    pif->GpioOut |= PIF_GPIO_PRENMI;
+                    WriteGpio(pif->GpioOut);
+                    pif->ResetBtnTick = pif->CurrentTick;
+                }
+            }
+            else
+            {
+                pif->ResetBtnHoldTick = 0;
+                if (pif->ResetBtnTick)
+                {
+                    if ((pif->CurrentTick - pif->ResetBtnTick) > 500)
+                    {
+                        pif->GpioOut |= PIF_GPIO_NMI;
+                        WriteGpio(pif->GpioOut);
+                        SetCicType(pif, pif->CicSeed[0]);
+                        pif->State = PIF_S_BOOTING;
+                    }
                 }
             }
         }
