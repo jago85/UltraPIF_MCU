@@ -57,7 +57,7 @@
 
 #include "crc32.h"
 
-#define MCU_VERSION 0x02000000
+#define MCU_VERSION 0x02000900
 
 // FPGA SPI Registers
 #define SPI_REG_INT 0x00
@@ -290,7 +290,13 @@ typedef struct N64_Inputs_st
 #define PIF_GPIO_RC_POR         (0x0200)
 #define PIF_GPIO_CIC_DI         (0x0400)
 #define PIF_GPIO_EN             (0x0800)
+
+// JP1 is clock mode
+// Open jumper (pin set) = Normal (Crystal) Mode (drive the PLL)
+// Closed jumper (pin reset) = Direct (VCLK) mode (drive VCLK)
 #define PIF_GPIO_JP1            (0x1000)
+
+// Unused
 #define PIF_GPIO_JP2            (0x2000)
 #define PIF_GPIO_JP3            (0x4000)
 #define PIF_GPIO_JP4            (0x8000)
@@ -330,6 +336,7 @@ typedef struct Pif_st {
     uint16_t GpioIn;
     uint8_t GpioOut;
 
+    bool UseDirectVclkMode;
     uint8_t CicRegion;
     uint8_t CicSeed[2];
     bool IsChechsumValid;
@@ -1233,8 +1240,6 @@ void I2cWriteTest(void)
 
 void SetClockGen(Pif_t *pif)
 {
-    si5351_init(SI5351_CRYSTAL_LOAD_10PF, 0);
-    si5351_output_enable(SI5351_CLK0, 0);
     si5351_output_enable(SI5351_CLK1, 0);
     si5351_output_enable(SI5351_CLK2, 0);
 
@@ -1242,9 +1247,6 @@ void SetClockGen(Pif_t *pif)
     si5351_set_freq(pif->Fso_5, SI5351_CLK1);   // FSO/5
     si5351_set_freq(pif->Fsc, SI5351_CLK2);     // FSC
 
-    si5351_drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
-    si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
-    si5351_drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
     //si5351_output_enable(SI5351_CLK0, 1);
     si5351_output_enable(SI5351_CLK1, 1);
     si5351_output_enable(SI5351_CLK2, 1);
@@ -1253,10 +1255,7 @@ void SetClockGen(Pif_t *pif)
 // FSO/5 ist OSC_IN, FSC ist FSEL
 void SetClockGen2(uint64_t osc_freq, bool fsel)
 {
-    si5351_init(SI5351_CRYSTAL_LOAD_10PF, 0);
-    si5351_output_enable(SI5351_CLK0, 0);
     si5351_output_enable(SI5351_CLK1, 0);
-    si5351_output_enable(SI5351_CLK2, 0);
 
     if (fsel == false)
     {
@@ -1267,13 +1266,33 @@ void SetClockGen2(uint64_t osc_freq, bool fsel)
         si5351_set_clock_disable(SI5351_CLK2, SI5351_CLK_DISABLE_HIGH); // FSEL high
     }
 
-    si5351_drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
-    si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
-    si5351_drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
-
     if (osc_freq != 0)
     {
         si5351_set_freq(osc_freq, SI5351_CLK1);   // OSC_IN
+        si5351_output_enable(SI5351_CLK1, 1);
+    }
+}
+
+void SetClockGen3(uint64_t osc_freq, bool fsel)
+{
+    uint64_t set_freq;
+
+    si5351_output_enable(SI5351_CLK1, 0);
+
+    if (fsel)
+    {
+        set_freq = osc_freq * 17 / 5; // FSO/5
+        si5351_set_clock_disable(SI5351_CLK2, SI5351_CLK_DISABLE_HIGH); // FSEL high
+    }
+    else
+    {
+        set_freq = osc_freq * 14 / 5; // FSO/5
+        si5351_set_clock_disable(SI5351_CLK2, SI5351_CLK_DISABLE_LOW);  // FSEL low
+    }
+
+    if (set_freq != 0)
+    {
+        si5351_set_freq(set_freq, SI5351_CLK1);  // FSO/5
         si5351_output_enable(SI5351_CLK1, 1);
     }
 }
@@ -2204,7 +2223,14 @@ void PIF_ExecuteCommand(Pif_t *pif)
             pif->Crystal = ReadU32FromBufferBigEndian(&pif->PifRamRead[10]);
             pif->Fsel = (pif->PifRamRead[14] != 0);
             UpdateDerivedClocks(pif);
-            SetClockGen2(pif->Crystal, pif->Fsel);
+            if (_Pif.UseDirectVclkMode)
+            {
+                SetClockGen3(pif->Crystal, pif->Fsel);
+            }
+            else
+            {
+                SetClockGen2(pif->Crystal, pif->Fsel);
+            }
         }
         else
         {
@@ -2630,7 +2656,14 @@ void PIF_Process(Pif_t *pif)
         if (pif->Crystal != 0)
         {
             UpdateDerivedClocks(pif);
-            SetClockGen2(pif->Crystal, pif->Fsel);
+            if (_Pif.UseDirectVclkMode)
+            {
+                SetClockGen3(pif->Crystal, pif->Fsel);
+            }
+            else
+            {
+                SetClockGen2(pif->Crystal, pif->Fsel);
+            }
         }
 
         SetCicType(pif, pif->CicSeed[0]);
@@ -3081,6 +3114,26 @@ int main(void)
   CRC_BuildTable();
 
   FLASH_WaitBusy();
+
+  // Disable all outputs
+  si5351_write(SI5351_OUTPUT_ENABLE_CTRL, 0xff);
+
+  si5351_init(SI5351_CRYSTAL_LOAD_10PF, 0);
+
+  // XTAL
+  si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA);
+  
+  // FSEL
+  si5351_drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
+
+  _Pif.GpioIn = ReadGpio();
+  _Pif.UseDirectVclkMode = (_Pif.GpioIn & PIF_GPIO_JP1) ? false : true;
+
+  // direct mode needs more strength
+  if (_Pif.UseDirectVclkMode)
+  {
+      si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_6MA);
+  }
 
   RTC_DateTypeDef rtcDate;
   HAL_RTC_GetDate(&hrtc, &rtcDate, RTC_FORMAT_BCD);
