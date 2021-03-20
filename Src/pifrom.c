@@ -1,24 +1,31 @@
 #include "pifrom.h"
 #include <stdlib.h>
+#include <assert.h>
 #include "pifrom_data.h"
 
-const uint8_t * PIFROM_GetRom(enum PifRomType type)
+bool PIFROM_GetRom(enum PifRomType type, struct PifRom_t * dst)
 {
-    const uint8_t * pifrom;
+    assert(dst != NULL);
 
     switch (type)
     {
     case PR_PAL:
-        pifrom = PifRom_Pal;
+        dst->Type = PR_PAL;
+        dst->Data = PifRom_Pal;
+        dst->Size = sizeof(PifRom_Pal);
         break;
 
     case PR_NTSC:
-        pifrom = PifRom_Ntsc;
+        dst->Type = PR_PAL;
+        dst->Data = PifRom_Ntsc;
+        dst->Size = sizeof(PifRom_Ntsc);
         break;
 
     default:
-        pifrom = NULL;
+        dst->Type = PR_INVALID;
+        dst->Data = NULL;
+        dst->Size = 0;
     }
 
-    return pifrom;
+    return (dst->Type == PR_INVALID) ? false : true;
 }

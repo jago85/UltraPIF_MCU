@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include "n64_cic_nus_6105.h"
 
@@ -57,7 +58,7 @@
 
 #include "crc32.h"
 
-#define MCU_VERSION 0x02000900
+#define MCU_VERSION 0x02000A00
 
 // FPGA SPI Registers
 #define SPI_REG_INT 0x00
@@ -1488,14 +1489,33 @@ void WritePifRamBank(uint8_t bank, uint8_t const *data)
     HAL_GPIO_WritePin(FPGA_CS_GPIO_Port, FPGA_CS_Pin, GPIO_PIN_SET);
 }
 
-void WritePifRamComplete(uint8_t const * data)
+void WritePifRamComplete(const struct PifRom_t * pifrom)
 {
     uint8_t bank;
+    uint8_t buf[PIFRAM_SIZE];
+    uint16_t bytesToRead;
+    uint16_t pos = 0;
+
+    assert(pifrom != NULL);
+    assert(pifrom->Type != PR_INVALID);
+    assert(pifrom->Data != NULL);
 
     for (bank = 0; bank < 32; bank++)
     {
-        WritePifRamBank(bank, data);
-        data += PIFRAM_SIZE;
+        memset(buf, 0, sizeof(buf));
+        bytesToRead = 0;
+
+        if (pos < pifrom->Size)
+        {
+            bytesToRead = pifrom->Size - pos;
+            if (bytesToRead > PIFRAM_SIZE)
+                bytesToRead = PIFRAM_SIZE;
+        }
+        memcpy(buf, &pifrom->Data[pos], bytesToRead);
+
+        WritePifRamBank(bank, buf);
+
+        pos += PIFRAM_SIZE;
     }
 }
 
@@ -1828,15 +1848,23 @@ static s32_t my_spiffs_write(u32_t addr, u32_t size, u8_t *src)
 
 static s32_t my_spiffs_erase(u32_t addr, u32_t size)
 {
-//    _Pif.GpioOut |= PIF_GPIO_LED;
-//    WriteGpio(_Pif.GpioOut);
+
+    if (fs.mounted == 0)
+    {
+        if (_Pif.GpioOut & PIF_GPIO_LED)
+        {
+            _Pif.GpioOut &= ~PIF_GPIO_LED;
+        }
+        else
+        {
+            _Pif.GpioOut |= PIF_GPIO_LED;
+        }
+        WriteGpio(_Pif.GpioOut);
+    }
 
     FLASH_WriteEnable();
     FLASH_Erase(addr, ERASE_32K);
     FLASH_WaitBusy();
-
-//    _Pif.GpioOut &= ~PIF_GPIO_LED;
-//    WriteGpio(_Pif.GpioOut);
 
     return SPIFFS_OK;
 }
