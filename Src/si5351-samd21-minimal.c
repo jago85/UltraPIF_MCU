@@ -753,7 +753,7 @@ void si5351_update_int_status(struct Si5351IntStatus *int_status)
 
 void si5351_set_ms_div(enum si5351_clock clk, uint8_t r_div, uint8_t div_by_4)
 {
-    uint8_t reg_val, reg_addr;
+    uint8_t reg_val, reg_addr = 0;
 
     switch(clk)
     {
