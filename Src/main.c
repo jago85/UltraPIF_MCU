@@ -1273,30 +1273,6 @@ void SetClockGen2(uint64_t osc_freq, bool fsel)
     }
 }
 
-void SetClockGen3(uint64_t osc_freq, bool fsel)
-{
-    uint64_t set_freq;
-
-    si5351_output_enable(SI5351_CLK1, 0);
-
-    if (fsel)
-    {
-        set_freq = osc_freq * 17 / 5; // FSO/5
-        si5351_set_clock_disable(SI5351_CLK2, SI5351_CLK_DISABLE_HIGH); // FSEL high
-    }
-    else
-    {
-        set_freq = osc_freq * 14 / 5; // FSO/5
-        si5351_set_clock_disable(SI5351_CLK2, SI5351_CLK_DISABLE_LOW);  // FSEL low
-    }
-
-    if (set_freq != 0)
-    {
-        si5351_set_freq(set_freq, SI5351_CLK1);  // FSO/5
-        si5351_output_enable(SI5351_CLK1, 1);
-    }
-}
-
 void UpdateDerivedClocks(Pif_t * pif)
 {
     if (pif->Fsel == true)
@@ -2225,7 +2201,7 @@ void PIF_ExecuteCommand(Pif_t *pif)
             UpdateDerivedClocks(pif);
             if (_Pif.UseDirectVclkMode)
             {
-                SetClockGen3(pif->Crystal, pif->Fsel);
+                SetClockGen2(pif->Fso_5, pif->Fsel);
             }
             else
             {
@@ -2651,6 +2627,7 @@ void PIF_Process(Pif_t *pif)
             }
             UpdateDerivedClocks(pif);
         }
+        UpdateDerivedClocks(pif);
 
         // only start the clocks when the values have been set
         if (pif->Crystal != 0)
@@ -2658,7 +2635,7 @@ void PIF_Process(Pif_t *pif)
             UpdateDerivedClocks(pif);
             if (_Pif.UseDirectVclkMode)
             {
-                SetClockGen3(pif->Crystal, pif->Fsel);
+                SetClockGen2(pif->Fso_5, pif->Fsel);
             }
             else
             {
