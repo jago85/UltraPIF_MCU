@@ -166,6 +166,7 @@ void FPGA_UpdateFromFile(spiffs_file updateFile);
 
 void ErrorBlink(int count);
 
+void WriteU16ToBufferBigEndian(uint8_t *buffer, uint16_t val);
 uint16_t ReadU16FromBufferBigEndian(uint8_t *buffer);
 void WriteU32ToBufferBigEndian(uint8_t *buffer, uint32_t val);
 uint32_t ReadU32FromBufferBigEndian(uint8_t *buffer);
@@ -589,9 +590,8 @@ void RtcEmulate(Pif_t *pif, uint8_t *txBuf, uint8_t *rxBuf)
         switch (txBuf[1])
         {
         case 0:
-            rxBuf[0] = pif->RtcControl;
-            rxBuf[1] = pif->RtcControl >> 8;
-            memset(rxBuf, 0, 6);
+            WriteU16ToBufferBigEndian(rxBuf, pif->RtcControl);
+            memset(&rxBuf[2], 0, 6);
             rxBuf[8] = (pif->RtcControl & 0x0004) ? 0x80 : 0x00;
             break;
         case 1:
@@ -1975,6 +1975,12 @@ void LoadRomData(Pif_t * pif)
     }
     memcpy(pif->PifRamWrite, &pif->FileBuffer[fileBufferIndex], PIFRAM_SIZE);
     pif->LastFileOffset += PIFRAM_SIZE;
+}
+
+void WriteU16ToBufferBigEndian(uint8_t *buffer, uint16_t val)
+{
+    buffer[0] = val >> 8;
+    buffer[1] = val >> 0;
 }
 
 uint16_t ReadU16FromBufferBigEndian(uint8_t *buffer)
