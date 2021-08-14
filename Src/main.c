@@ -3155,7 +3155,7 @@ int main(void)
   // direct mode needs more strength
   if (_Pif.UseDirectVclkMode)
   {
-      si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_6MA);
+      si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
   }
 
   RTC_DateTypeDef rtcDate;
