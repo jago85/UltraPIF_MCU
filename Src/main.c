@@ -3142,20 +3142,23 @@ int main(void)
   si5351_write(SI5351_OUTPUT_ENABLE_CTRL, 0xff);
 
   si5351_init(SI5351_CRYSTAL_LOAD_10PF, 0);
-
-  // XTAL
-  si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA);
   
-  // FSEL
+  // FSEL drive strength
   si5351_drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
 
   _Pif.GpioIn = ReadGpio();
   _Pif.UseDirectVclkMode = (_Pif.GpioIn & PIF_GPIO_JP1) ? false : true;
 
-  // direct mode needs more strength
+  // XTAL drive strength
   if (_Pif.UseDirectVclkMode)
   {
+      // direct mode needs more strength
       si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
+  }
+  else
+  {
+      // only feeding the MX83x0 PLL
+      si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA);
   }
 
   RTC_DateTypeDef rtcDate;
