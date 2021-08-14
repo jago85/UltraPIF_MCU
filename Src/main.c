@@ -200,6 +200,7 @@ enum UltraPifBootCommand {
     ULTRAPIF_BCMD_OPEN_ROM = 1,
     ULTRAPIF_BCMD_LOAD_ROM_PAGE = 2,
     ULTRAPIF_BCMD_SET_RGBLED = 3,
+    ULTRAPIF_BCMD_PUTCHAR = 4,
     ULTRAPIF_BCMD_DEBUG = 0xffff
 };
 
@@ -376,6 +377,7 @@ typedef struct Pif_st {
 
 uint8_t _SpiTxBuf[256];
 uint8_t _SpiRxBuf[256];
+uint8_t _UartTxBuf[54];
 
 Pif_t _Pif;
 
@@ -2503,7 +2505,8 @@ void PIF_ExecuteCommand(Pif_t *pif)
 
         // Send debug string to UART (max. 54 characters)
         uint8_t len = strnlen((char *)&pif->PifRamRead[10], 54);
-        HAL_UART_Transmit_DMA(&huart1, &pif->PifRamRead[10], len);
+        memcpy(_UartTxBuf, &pif->PifRamRead[10], len);
+        HAL_UART_Transmit_DMA(&huart1, _UartTxBuf, len);
         break;
     }
     }
@@ -2817,6 +2820,17 @@ void PIF_Process(Pif_t *pif)
                             uint16_t green = (pif->PifRamRead[2] << 8) | pif->PifRamRead[3];
                             uint16_t blue = (pif->PifRamRead[4] << 8) | pif->PifRamRead[5];
                             WriteRgbLed(red, green, blue);
+                            break;
+                        }
+
+                        case ULTRAPIF_BCMD_PUTCHAR:
+                        {
+                            // wait for DMA to be ready
+                            while (huart1.gState != HAL_UART_STATE_READY) ;
+
+                            // Send debug char to UART
+                            _UartTxBuf[0] = (uint8_t)subcmd;
+                            HAL_UART_Transmit_DMA(&huart1, _UartTxBuf, 1);
                             break;
                         }
 
