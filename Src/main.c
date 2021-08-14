@@ -2662,9 +2662,7 @@ void PIF_Process(Pif_t *pif)
                 pif->Crystal = 14318180;
                 pif->Fsel = true;
             }
-            UpdateDerivedClocks(pif);
         }
-        UpdateDerivedClocks(pif);
 
         // only start the clocks when the values have been set
         if (pif->Crystal != 0)
