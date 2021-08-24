@@ -1371,6 +1371,70 @@ void TestEeprom2(void)
     EepromTransmitReceive(txBuf, 1, rxBuf, 3);
 }
 
+spiffs_file CreateTestFile(const char * path, int wanted_size)
+{
+    spiffs_file fil = SPIFFS_open(&fs, path, SPIFFS_O_RDWR, 0);
+
+    if (fil > 0)
+    {
+        spiffs_stat stat;
+        SPIFFS_fstat(&fs, fil, &stat);
+        if (stat.size != wanted_size)
+        {
+            SPIFFS_close(&fs, fil);
+            SPIFFS_remove(&fs, path);
+            fil = 0;
+        }
+    }
+    if (fil <= 0)
+    {
+        fil = SPIFFS_open(&fs, path, SPIFFS_O_CREAT | SPIFFS_O_RDWR, 0);
+        if (fil > 0)
+        {
+            // write 2048 bytes 0x00 to EEPROM file
+            // use TestMem as dummy
+            memset(TestMem, 0xff, PIFRAM_SIZE);
+            int size_left = wanted_size;
+            while (size_left > 0)
+            {
+                int write_size = (size_left < PIFRAM_SIZE) ? size_left : PIFRAM_SIZE;
+                SPIFFS_write(&fs, fil, TestMem, write_size);
+                size_left -= write_size;
+            }
+            SPIFFS_lseek(&fs, fil, 0, SPIFFS_SEEK_SET);
+        }
+        else
+        {
+            fil = 0;
+        }
+    }
+
+    return fil;
+}
+
+void TestEepromEmulation(void)
+{
+    _Pif.IsEepromEmulationEnabled = true;
+    memcpy(_Pif.EepromType, EepromType4k, 3);
+    _Pif.EepromFile = CreateTestFile("eep4k.bin", 2048);
+    if (_Pif.EepromFile <= 0)
+    {
+        _Pif.IsEepromEmulationEnabled = false;
+    }
+}
+
+void TestControllerPakEmulation(void)
+{
+    _Pif.PakEmulationInfo[0].IsEmulationEnabled = true;
+    _Pif.PakEmulationInfo[0].IsPakEnabled = true;
+    _Pif.PakEmulationInfo[0].State = PAK_EMUL_INSERTED;
+    _Pif.PakEmulationInfo[0].PakFile = CreateTestFile("pak1.bin", 32 * 1024);
+    if (_Pif.PakEmulationInfo[0].PakFile <= 0)
+    {
+        _Pif.PakEmulationInfo[0].IsEmulationEnabled = false;
+    }
+}
+
 //uint8_t EepromBuffer[2048];
 //void CopyEeprom(void)
 //{
@@ -2582,6 +2646,9 @@ void PIF_Process(Pif_t *pif)
                 // Error: Invalid Filesystem
                 ErrorBlink(1);
             }
+
+//            TestEepromEmulation();
+//            TestControllerPakEmulation();
         }
         break;
 
@@ -3177,43 +3244,6 @@ int main(void)
 
 //    _Pif.IsRtcEmulationEnabled = true;
 //    _Pif.RtcControl = 0x0003;
-
-//  _Pif.IsEepromEmulationEnabled = true;
-//  memcpy(_Pif.EepromType, EepromType4k, 3);
-//  _Pif.EepromFile = SPIFFS_open(&fs, "eep4k.bin", SPIFFS_O_RDWR, 0);
-//  if (_Pif.EepromFile < 0)
-//  {
-//      _Pif.EepromFile = SPIFFS_open(&fs, "eep4k.bin", SPIFFS_O_CREAT | SPIFFS_O_RDWR, 0);
-//      if (_Pif.EepromFile > 0)
-//      {
-//          // write 2048 bytes 0x00 to EEPROM file
-//          for (int i = 0; i < 32; i++)
-//          {
-//              // use PifRam as dummy
-//              SPIFFS_write(&fs, _Pif.EepromFile, _Pif.PifRamWrite, PIFRAM_SIZE);
-//          }
-//      }
-//  }
-
-//  _Pif.PakEmulationInfo[0].IsEmulationEnabled = true;
-//  _Pif.PakEmulationInfo[0].PakFile = SPIFFS_open(&fs, "pak1.bin", SPIFFS_O_RDWR, 0);
-//  if (_Pif.PakEmulationInfo[0].PakFile < 0)
-//  {
-//      _Pif.PakEmulationInfo[0].PakFile = SPIFFS_open(&fs, "pak1.bin", SPIFFS_O_CREAT | SPIFFS_O_RDWR, 0);
-//      if (_Pif.PakEmulationInfo[0].PakFile > 0)
-//      {
-//          // write 32768 bytes 0x00 to Pak file
-//            for (int i = 0; i < 512; i++)
-//            {
-//                // use PifRam as dummy
-//                SPIFFS_write(&fs, _Pif.PakEmulationInfo[0].PakFile, _Pif.PifRamWrite, PIFRAM_SIZE);
-//            }
-//      }
-//      else
-//      {
-//          _Pif.PakEmulationInfo[0].IsEmulationEnabled = false;
-//      }
-//  }
 
   /* USER CODE END 2 */
 
