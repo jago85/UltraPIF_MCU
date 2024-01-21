@@ -878,7 +878,11 @@ void ExecutePifCommand(Pif_t *pif, uint8_t channel, uint8_t *txBuf, uint8_t txLe
 
         if ((txBuf[-1] == rxLen) && (txBuf[0] == 0x01))
         {
-            N64_Inputs_t * inp = (N64_Inputs_t *)rxBuf;
+            // rxBuf may be unaligned which would trigger a HardFault
+            // copy input data into aligned buffer
+            N64_Inputs_t alignedInputData;
+            memcpy(&alignedInputData, rxBuf, sizeof(N64_Inputs_t));
+            N64_Inputs_t * inp = &alignedInputData;
 
             // Capture Inputs of Controller Port 1
             // Initiate a remote reset if A, B, L, R and Z are pressed
