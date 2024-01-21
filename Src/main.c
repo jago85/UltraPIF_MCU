@@ -876,7 +876,7 @@ void ExecutePifCommand(Pif_t *pif, uint8_t channel, uint8_t *txBuf, uint8_t txLe
             txBuf[-1] = ControllerSendReceive(channel, txBuf, txLen, rxBuf, rxLen);
         }
 
-        if ((txBuf[-1] == rxLen) && (txBuf[0] == 0x01))
+        if ((txBuf[-1] == rxLen) && (rxLen == 4) && (txBuf[0] == 0x01))
         {
             // rxBuf may be unaligned which would trigger a HardFault
             // copy input data into aligned buffer
