@@ -58,7 +58,7 @@
 
 #include "crc32.h"
 
-#define MCU_VERSION 0x02000B00
+#define MCU_VERSION 0x02000B01
 
 // FPGA SPI Registers
 #define SPI_REG_INT 0x00
